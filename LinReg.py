@@ -19,7 +19,7 @@ from sklearn.linear_model import LinearRegression, Ridge, Lasso
 
 quandl.ApiConfig.api_key = "rR9RqufYNmrUGvb-as-G"
 
-INSTRUMENT = '../ETFs/spy.us.txt'
+INSTRUMENT = 'ETFs/spy.us.txt'
 
 INDICES = ['CME_GC1', 'CBOE_VX1', 'ICE_DX1', 'CME_SP1', 'CME_NG1', 'CME_CL1']
 MARKET_FEATURES = ['CHRIS/' + item for item in INDICES]
