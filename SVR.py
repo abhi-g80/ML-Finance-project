@@ -36,7 +36,7 @@ def standardize(df):
     return scaled_df
 
 
-def support_vector_regression(df, gamma='scale', C=1.0, epsilon=0.2, 
+def support_vector_regression(df, gamma=0.001, C=1.0, epsilon=0.2, 
                               features=None, target=None, debug=None):
     X = pd.DataFrame(df[features])    
     y = pd.DataFrame(df[target])
@@ -64,7 +64,7 @@ def support_vector_regression(df, gamma='scale', C=1.0, epsilon=0.2,
         plt.show()
 
 
-def support_vector_machines(df, gamma='scale', C=1.0, kernel='rbf', 
+def support_vector_machines(df, gamma=0.025, C=1.0, kernel='rbf', 
                             features=None, target=None, debug=None):
     X = pd.DataFrame(df[features])    
     y = pd.DataFrame(df[target])
