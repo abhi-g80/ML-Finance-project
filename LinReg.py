@@ -8,6 +8,7 @@ Created on Wed May 15 23:18:14 2019
 import os
 
 from EDA import EDA
+import seaborn as sns
 import quandl
 import numpy as np
 import pandas as pd
@@ -22,7 +23,10 @@ quandl.ApiConfig.api_key = "rR9RqufYNmrUGvb-as-G"
 INSTRUMENT = 'ETFs/spy.us.txt'
 
 INDICES = ['CME_GC1', 'CBOE_VX1', 'ICE_DX1', 'CME_SP1', 'CME_NG1', 'CME_CL1']
+
 MARKET_FEATURES = ['CHRIS/' + item for item in INDICES]
+
+# MARKET_FEATURES.append('FRED/DGS10')
 
 
 def standardize(df):
@@ -126,6 +130,9 @@ def macro_indicators_linreg(df):
         print('NaN values still present, abort...')
         return
 
+    #feature_heatmap(df)
+    feature_importance(df)
+
     features = list(df.columns)[12:]
     linear_regression(df, features=features, target='Close_open')
     linear_regression(df, features=features, target='Close_open', 
@@ -133,11 +140,42 @@ def macro_indicators_linreg(df):
     linear_regression(df, features=features, target='Close_open', 
                       regularization='L2')
 
+
+def feature_heatmap(df):
+    corr = df.corr()
+    corr_index = corr.index
+    plt.figure(figsize=(20,20))
+    sns_plot = sns.heatmap(df[corr_index].corr(), annot=True, cmap="RdYlGn")
+    fig = sns_plot.get_figure()
+    fig.savefig("Macro-heatmap.png")
+    plt.plot()
+
+
+def feature_importance(df):
+    features = list(df.columns)[12:]
+    X = pd.DataFrame(df[features])    
+    y = pd.DataFrame(df['Close_open'])
+    
+    from sklearn.ensemble import ExtraTreesRegressor
+
+    model = ExtraTreesRegressor()
+    model.fit(X, y)
+    
+    # Use inbuilt class feature_importances of tree based classifiers
+    print(model.feature_importances_) 
+     
+    # Plot graph of feature importances for better visualization
+    feat_importances = pd.Series(model.feature_importances_, index=X.columns)
+    feat_importances.nlargest(20).plot(kind='barh')
+    
+    plt.show()
+
+
 def main():
     #os.chdir(PROJ_DIR)
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
-    df = EDA(INSTRUMENT, False, True)
-    techical_indicators_linreg(df)
+    #df = EDA(INSTRUMENT, debug=False, tech_analysis=True)
+    #techical_indicators_linreg(df)
 
     df = EDA(INSTRUMENT)
     macro_indicators_linreg(df)
@@ -145,28 +183,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-#df = EDA('ETFs/spy.us.txt', True, '2016-01-01', '2016-01-20')
-#print(df['Close_close'])
-#print(df['Close_close'].interpolate()
-#linear_regression(df, input='Close_close', target='Close_open')
-
-#df = df.fillna(method='backfill')
-
-#for column in df.columns:
-#    if column not in ['Close_open']:
-#        LinReg(df, input=column, target='Close_open')
-
-#df = EDA('ETFs/spy.us.txt')
-
-#macro_indicators_linreg('ETFs/spy.us.txt')
-#df = df.fillna(method='backfill')
-
-#print(df.info())
-#print(df.head())
-
-#df.to_csv(path_or_buf='spy_test.csv', sep=',')
-
-#for column in df.columns:
-#    if column not in ['Close_open', 'OpenInt']:
-#        linear_regression(df, free=column, target='Close_open')
