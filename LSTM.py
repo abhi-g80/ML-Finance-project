@@ -36,8 +36,6 @@ class LSTMModel():
         target:         Feature to predict, default 'Close'.
         epochs:         Number of epochs for LSTM, default 5.
         batch_size:     Batch size for LSTM, default 32.
-        
-        
     """
 
     def __init__(self, instrument=None, split=0.8, look_back_days=60, 
@@ -197,7 +195,7 @@ class LSTMModel():
 
         return
 
-    def fit(self, units=50, optimizer='adagrad', loss='mean_squared_error'):
+    def fit(self, units=50, optimizer='adam', loss='mean_squared_error'):
         features_set = []
         labels = []
 
