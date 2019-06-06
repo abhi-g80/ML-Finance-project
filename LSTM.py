@@ -50,6 +50,14 @@ class LSTMModel():
         self.__actual_prices = None
         self.__actual_test_prices = None
 
+    def __repr__(self):
+        return self.__dict__
+    
+    def __str__(self):
+        return f"""LSTMModel(instrument={self.instrument},
+        split={self.split}, target={self.target},
+        look_back_days={self.look_back_days})"""
+
     @property
     def instrument(self):
         return self.__instrument
@@ -57,6 +65,10 @@ class LSTMModel():
     @property
     def split(self):
         return self.__split
+
+    @property
+    def look_back_days(self):
+        return self.__look_back_days
 
     @instrument.setter
     def instrument(self, instrument):
@@ -71,8 +83,16 @@ class LSTMModel():
         if 0.5 < split < 1:
             self.__split = split
         else:
-            raise ValueError(f"Split ratio {split} should be between"
+            raise ValueError(f"Split ratio given {split}, should be between "
                               "0.50 and 0.99.")
+    
+    @look_back_days.setter
+    def look_back_days(self, look_back_days):
+        if look_back_days > 20:
+            self.__look_back_days = look_back_days
+        else:
+            raise ValueError(f"Look back days given {look_back_days}, has to "
+                              "be greater than 20")
 
     def __process_data(self):
         self.__instr_df.interpolate(method='linear')
@@ -109,7 +129,7 @@ class LSTMModel():
 
     def __plot(self):
         plt.figure(figsize=(20,10))
-        self.__actual_test_prices.plot(color='blue')
+        self.__actual_test_prices.plot(color='blue', grid=True)
         plt.plot(self.predictions , color='red', label='Predicted close')
         plt.title('Prediction')
         plt.xlabel('Date')
@@ -187,7 +207,7 @@ class LSTMModel():
 
 def main():
     # Create instance
-    instr = LSTMModel(INSTRUMENT, split=0.85)
+    instr = LSTMModel(INSTRUMENT, split=0.85, look_back_days=60)
     
     # Read and process the data
     instr.preprocess()
