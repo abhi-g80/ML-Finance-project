@@ -5,25 +5,37 @@ Created on Sat Jun  1 18:26:37 2019
 
 @author: abhishek
 """
+from pathlib import Path
 
 import numpy as np  
 import matplotlib.pyplot as plt  
 import pandas as pd
 
-from pathlib import Path
-
-from EDA import EDA
-
 from keras.models import Sequential
-from keras.layers import Dense, Activation
+from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Dropout
 
 from sklearn.preprocessing import MinMaxScaler
 
 
+scaler = MinMaxScaler(feature_range = (0, 1))
+
+INSTRUMENT = 'ETFs/spy.us.txt'
+
+
 class LSTMModel():
+    """ Wrapper class for implementing LSTM model for predicting future price
+    movement.
     
+    Args:
+    -----
+        instrument:     OHLC file for the instument to be analyzed.
+        split:          Percentage of train and test split, default 80%.
+        look_back_days: Number of days to be used by LSTM, default 60 days.
+        target:         Feature to predict, default 'Close'.
+    """
+
     def __init__(self, instrument=None, split=0.8, look_back_days=60, 
                  target='Close'):
         self.instrument = instrument
@@ -61,36 +73,36 @@ class LSTMModel():
         else:
             raise ValueError(f"Split ratio {split} should be between"
                               "0.50 and 0.99.")
-    
+
     def __process_data(self):
         self.__instr_df.interpolate(method='linear')
 
     def __split_train_and_test_df(self):
         self.__process_data()
-    
+
         index = self.__instr_df.columns.get_loc(self.target)
         nparray = self.__instr_df.iloc[:,index:(index+1)]
-    
+
         self.__actual_prices = nparray
-    
+
         # Normalize our Numpy array
         nparray = self.normalize(nparray)
 
-        # Train test split, default 80% train 20% test 
+        # Train test split, default 80% train 20% test
         total_obs = len(nparray)
         self.train = nparray[:int(total_obs * self.split),:]
-    
+
         test_inputs = nparray[len(self.train) - self.look_back_days:]
-    
+
         test_inputs = test_inputs.reshape(-1,1)
-    
+
         test_features = []
         for i in range(self.look_back_days, len(test_inputs)):
             test_features.append(test_inputs[i - self.look_back_days:i,0])
 
-        test_features = np.array(test_features)  
-        test_features = np.reshape(test_features, (test_features.shape[0], 
-                                                   test_features.shape[1], 1))    
+        test_features = np.array(test_features)
+        test_features = np.reshape(test_features, (test_features.shape[0],
+                                                   test_features.shape[1], 1))
 
         self.test = test_features
         return
@@ -173,139 +185,21 @@ class LSTMModel():
         return
 
 
-INSTRUMENT = 'ETFs/spy.us.txt'
-
-
-scaler = MinMaxScaler(feature_range = (0, 1))
-
-def normalize(df, inverse=False):
-    if inverse:
-        df_scaled = scaler.inverse_transform(df) 
-    else:
-        df_scaled = scaler.fit_transform(df)
-    return df_scaled
-
-
-def run_lstm(nparray, look_back_days=30):
-    features_set = []  
-    labels = []  
-    for i in range(look_back_days, len(nparray)):
-        features_set.append(nparray[i-look_back_days:i, 0])
-        labels.append(nparray[i, 0])
-
-    features_set, labels = np.array(features_set), np.array(labels)
-
-    features_set = np.reshape(features_set, (features_set.shape[0], 
-                                             features_set.shape[1], 1))
-
-    model = Sequential()
-    model.add(LSTM(units=50, return_sequences=True, 
-                   input_shape=(features_set.shape[1], 1)))        
-
-    model.add(Dropout(0.2))
-    model.add(LSTM(units=50, return_sequences=True))
-
-    model.add(Dropout(0.2))
-    model.add(LSTM(units=50, return_sequences=True))
-
-    model.add(Dropout(0.2))
-    model.add(LSTM(units=50))
-
-    model.add(Dropout(0.2))
-    model.add(Dense(units = 1))
-    
-    model.compile(optimizer = 'adagrad', loss = 'mean_squared_error')
-    model.fit(features_set, labels, epochs = 1, batch_size = 32)
-    
-    #model = Sequential()
-    #model.add(LSTM(units=50, input_shape=(features_set.shape[1], 1), 
-    #               return_sequences = True))
-    #model.add(LSTM(16))
-    #model.add(Dense(1))
-    #model.add(Activation('linear'))
-    
-    # MODEL COMPILING AND TRAINING
-    #model.compile(loss='mean_squared_error', optimizer='adagrad') 
-    # Try SGD, adam, adagrad and compare!!!
-    #model.fit(features_set, labels, epochs=5, batch_size=1)
-
-    return model
-    
-
-def plot(prices, predictions):
-
-    plt.figure(figsize=(20,9))
-    prices.plot(label='Actual Close', color='blue')
-    plt.plot(predictions , color='red', label='Predicted close')
-    plt.title('Prediction')
-    plt.xlabel('Date')
-    plt.ylabel('Price')
-    plt.legend()
-    plt.show()    
-    
-
 def main():
-    df = EDA(INSTRUMENT)
+    # Create instance
+    instr = LSTMModel(INSTRUMENT, split=0.85)
     
-    # Fillup NaN
-    df = df.interpolate(method='linear')
-
-    # Since our target is Close_open, we drop all except that
-    index = df.columns.get_loc('Close')
-    nparray = df.iloc[:, index:(index+1)]
-    
-    actual_prices_nparray = nparray
-    
-    # Normalize our Numpy array
-    nparray = normalize(nparray)
-
-    # Train test split, 80% train 20% test 
-    split = 0.80
-    total_obs = len(nparray)
-    train = nparray[:int(total_obs * split),:]
-
-    look_back_days = 60
-
-    # Run model
-    model = run_lstm(train, look_back_days)
-
-    test_inputs = nparray[len(train) - look_back_days:]
-    
-    test_inputs = test_inputs.reshape(-1,1)
-    
-    test_features = []
-    for i in range(look_back_days, len(test_inputs)):
-        test_features.append(test_inputs[i - look_back_days:i,0])
-
-    test_features = np.array(test_features)  
-    test_features = np.reshape(test_features, (test_features.shape[0], 
-                                               test_features.shape[1], 1))
-    predictions = model.predict(test_features)
-    
-    predictions = normalize(predictions, inverse=True)
-
-    actual_prices = actual_prices_nparray[len(train):]
-    
-    if actual_prices.shape == predictions.shape:
-        plot(actual_prices, predictions)
-    else:
-        print("Shape doesn't match")
-        print(f"Actual price shape {actual_prices.shape}")
-        print(f"Prediction shape {predictions.shape}")
-
-
-    print("Using class")
-    
-    instr = LSTMModel(INSTRUMENT)
-    
+    # Read and process the data
     instr.preprocess()
     
-    instr.fit()
+    # Fit LSTM model
+    instr.fit(epochs=1)
     
+    # Predict
     instr.predict()
     
+    # Plot result
     instr.plot()
-    
 
 
 if __name__ == '__main__':
