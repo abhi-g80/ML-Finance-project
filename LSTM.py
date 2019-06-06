@@ -234,6 +234,11 @@ class LSTMModel():
         self.predictions = self.model.predict(self.test)
         return
 
+    def error(self):
+        """ Naive RMSE implementation """
+        return ((self.__actual_test_prices[self.target].values - self.predictions)
+                ** 2).mean() ** 0.5
+        
 
 def main():
     # Create instance
@@ -251,6 +256,7 @@ def main():
     # Plot result
     instr.plot()
 
+    print(f'Error: {instr.error()}')
 
 if __name__ == '__main__':
     main()
