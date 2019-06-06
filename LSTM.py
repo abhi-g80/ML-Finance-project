@@ -34,14 +34,20 @@ class LSTMModel():
         split:          Percentage of train and test split, default 80%.
         look_back_days: Number of days to be used by LSTM, default 60 days.
         target:         Feature to predict, default 'Close'.
+        epochs:         Number of epochs for LSTM, default 5.
+        batch_size:     Batch size for LSTM, default 32.
+        
+        
     """
 
     def __init__(self, instrument=None, split=0.8, look_back_days=60, 
-                 target='Close'):
+                 target='Close', epochs=5, batch_size=32):
         self.instrument = instrument
         self.split = split
         self.target = target
         self.look_back_days = look_back_days
+        self.batch_size = batch_size
+        self.epochs = epochs
         self.model = None
         self.train = None
         self.test = None
@@ -69,6 +75,14 @@ class LSTMModel():
     @property
     def look_back_days(self):
         return self.__look_back_days
+    
+    @property
+    def epochs(self):
+        return self.__epochs
+    
+    @property
+    def batch_size(self):
+        return self.__batch_size
 
     @instrument.setter
     def instrument(self, instrument):
@@ -93,6 +107,22 @@ class LSTMModel():
         else:
             raise ValueError(f"Look back days given {look_back_days}, has to "
                               "be greater than 20")
+    
+    @epochs.setter
+    def epochs(self, epochs):
+        if 1 <= epochs <= 100:
+            self.__epochs = epochs
+        else:
+            raise ValueError(f"Epochs given {epochs}, should be between "
+                              "1 and 100")
+    
+    @batch_size.setter
+    def batch_size(self, batch_size):
+        if 32 <= batch_size <= 512:
+            self.__batch_size = batch_size
+        else:
+            raise ValueError(f"Batch size given {batch_size}, should be "
+                              "between 32 and 512")
 
     def __process_data(self):
         self.__instr_df.interpolate(method='linear')
@@ -167,8 +197,7 @@ class LSTMModel():
 
         return
 
-    def fit(self, epochs=1, units=50, batch_size=32, optimizer='adagrad',
-            loss='mean_squared_error'):
+    def fit(self, units=50, optimizer='adagrad', loss='mean_squared_error'):
         features_set = []
         labels = []
 
@@ -198,7 +227,8 @@ class LSTMModel():
         self.model.add(Dense(units=1))
     
         self.model.compile(optimizer=optimizer, loss=loss)
-        self.model.fit(features_set, labels, epochs=epochs, batch_size=batch_size)
+        self.model.fit(features_set, labels, epochs=self.epochs, 
+                       batch_size=self.batch_size)
 
     def predict(self):
         self.predictions = self.model.predict(self.test)
@@ -207,13 +237,13 @@ class LSTMModel():
 
 def main():
     # Create instance
-    instr = LSTMModel(INSTRUMENT, split=0.85, look_back_days=60)
+    instr = LSTMModel(INSTRUMENT, split=0.8, look_back_days=60, epochs=10)
     
     # Read and process the data
     instr.preprocess()
     
     # Fit LSTM model
-    instr.fit(epochs=1)
+    instr.fit()
     
     # Predict
     instr.predict()
