@@ -22,15 +22,24 @@ quandl.ApiConfig.api_key = "rR9RqufYNmrUGvb-as-G"
 
 INSTRUMENT = 'ETFs/spy.us.txt'
 
-INDICES = ['CME_GC1', 'CBOE_VX1', 'ICE_DX1', 'CME_SP1', 'CME_NG1', 'CME_CL1']
+INDICES = ['CME_GC1', 'CME_ES1', 'CBOE_VX1', 'ICE_DX1', 'CME_NG1', 'CME_CL1']
+#INDICES = ['CME_GC1', 'CME_ES1', 'CBOE_VX1', 'ICE_DX1', 'CME_NG1', 'CME_CL1']
 
 MARKET_FEATURES = ['CHRIS/' + item for item in INDICES]
 
 # MARKET_FEATURES.append('FRED/DGS10')
 
+def custom_train_test_split(X, y, test_size=0.2):
+    X_train, X_test = X[:int(len(X)*(1-test_size))], X[int(len(X)*(1-test_size)):]
+    y_train, y_test = y[:int(len(y)*(1-test_size))], y[int(len(y)*(1-test_size)):]
+    
+    return X_train, X_test, y_train, y_test
+
+
+scaler = preprocessing.StandardScaler()
+
 
 def standardize(df):
-    scaler = preprocessing.StandardScaler()
     columns = df.columns
     
     scaled_df = scaler.fit_transform(df)
@@ -70,7 +79,7 @@ def linear_regression(df, features=None, target=None, regularization=None,
         scores.append(model.score(X.iloc[test,:], y.iloc[test,:]))
     """
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
-                                                        random_state=0)
+                                                        shuffle=False)
     model.fit(X_train, y_train)
     scores = (model.score(X_test, y_test))
     
@@ -109,9 +118,14 @@ def add_market_features(df, args, start_date=None, end_date=None):
 
 def techical_indicators_linreg(df):
     df = df.fillna(method='backfill')
+    df = df.fillna(method='ffill')
+
+    #feature_heatmap(df)
+    feature_importance(df)
+
+    features = list(df.columns)[27:]
     
-    features = list(df.columns)[12:]
-    linear_regression(df, features=features, target='Close_open')
+    linear_regression(df, features=features, target='Close_open', debug=True)
     linear_regression(df, features=features, target='Close_open', 
                       regularization='L1')
     linear_regression(df, features=features, target='Close_open', 
@@ -130,7 +144,7 @@ def macro_indicators_linreg(df):
         print('NaN values still present, abort...')
         return
 
-    #feature_heatmap(df)
+    # feature_heatmap(df)
     feature_importance(df)
 
     features = list(df.columns)[12:]
@@ -142,17 +156,17 @@ def macro_indicators_linreg(df):
 
 
 def feature_heatmap(df):
-    corr = df.corr()
-    corr_index = corr.index
-    plt.figure(figsize=(20,20))
+    # corr = df.corr()
+    corr_index = list(df.columns)[12:]
+    plt.figure(figsize=(13,13))
     sns_plot = sns.heatmap(df[corr_index].corr(), annot=True, cmap="RdYlGn")
     fig = sns_plot.get_figure()
-    fig.savefig("Macro-heatmap.png")
+    fig.savefig("Graphs/features-technical-heatmap.png")
     plt.plot()
 
 
 def feature_importance(df):
-    features = list(df.columns)[12:]
+    features = list(df.columns)[27:]
     X = pd.DataFrame(df[features])    
     y = pd.DataFrame(df['Close_open'])
     
@@ -166,18 +180,21 @@ def feature_importance(df):
      
     # Plot graph of feature importances for better visualization
     feat_importances = pd.Series(model.feature_importances_, index=X.columns)
-    feat_importances.nlargest(20).plot(kind='barh')
-    
+    plot = feat_importances.nlargest(15).plot(kind='barh')
+    fig = plot.get_figure()
+    fig.savefig("Graphs/Feature-importance-technical.png")
     plt.show()
 
 
 def main():
     #os.chdir(PROJ_DIR)
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
-    #df = EDA(INSTRUMENT, debug=False, tech_analysis=True)
-    #techical_indicators_linreg(df)
+    df = EDA(INSTRUMENT, debug=False, tech_analysis=True)
+    print('Technical indicators')
+    techical_indicators_linreg(df)
 
     df = EDA(INSTRUMENT)
+    print('Market indicators')
     macro_indicators_linreg(df)
 
 
