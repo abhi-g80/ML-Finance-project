@@ -17,7 +17,9 @@ from sklearn import preprocessing
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score
+
+from lightgbm import LGBMClassifier
 
 
 quandl.ApiConfig.api_key = "rR9RqufYNmrUGvb-as-G"
@@ -31,6 +33,13 @@ MARKET_FEATURES = ['CHRIS/' + item for item in INDICES]
 scaler = preprocessing.StandardScaler()
 
 
+def custom_train_test_split(X, y, test_size=0.2):
+    X_train, X_test = X[:int(len(X)*(1-test_size))], X[int(len(X)*(1-test_size)):]
+    y_train, y_test = y[:int(len(y)*(1-test_size))], y[int(len(y)*(1-test_size)):]
+    
+    return X_train, X_test, y_train, y_test
+
+
 def standardize(df):
     columns = df.columns
     
@@ -38,6 +47,41 @@ def standardize(df):
     scaled_df = pd.DataFrame(scaled_df, columns=columns)
     
     return scaled_df
+
+
+def lightgbm_classifier(df, features=None, target=None, debug=None):
+    X = pd.DataFrame(df[features])    
+    y = pd.DataFrame(df[target])
+  
+    X = standardize(X)
+
+    if debug:
+        print(f"Shape X = {X.shape}, y = {y.shape}")
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        shuffle=False)
+
+    params = {
+        'objective':'multiclass', 
+        'boosting':'gbdt', 
+        'metric':'multi_logloss', 
+        'num_boost_round':50000, 
+        'random_state':5,
+        'reg_lambda': 1.2,
+        'reg_alpha': 1,
+    }
+    
+    lgbm = LGBMClassifier(**params)
+    
+    model = lgbm.fit(X_train, y_train)
+    
+    predictions = model.predict(X_test)
+
+    score = r2_score(y_test, predictions)
+    
+    print(f'Score: {score}')
+    
+    return
 
 
 def logistic_regression(df, features=None, target=None, debug=None):
@@ -49,8 +93,8 @@ def logistic_regression(df, features=None, target=None, debug=None):
     if debug:
         print(f"Shape X = {X.shape}, y = {y.shape}")
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
-                                                        random_state=0)
+    X_train, X_test, y_train, y_test = custom_train_test_split(X, y,
+                                                               test_size=0.2)
     model = LogisticRegression(random_state=0, solver='lbfgs',
                                multi_class='multinomial')
 
@@ -79,8 +123,8 @@ def random_forest_classifier(df, features=None, n_estimators=100, max_depth=2,
     if debug:
         print(f"Shape X = {X.shape}, y = {y.shape}")
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
-                                                        random_state=0)
+    X_train, X_test, y_train, y_test = custom_train_test_split(X, y,
+                                                               test_size=0.2)
     model = RandomForestClassifier(n_estimators=n_estimators, 
                                    max_depth=max_depth, random_state=0)
 
@@ -109,8 +153,8 @@ def support_vector_machines(df, gamma=0.025, C=55.0, kernel='rbf',
     if debug:
         print(f"Shape X = {X.shape}, y = {y.shape}")
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
-                                                        random_state=0)
+    X_train, X_test, y_train, y_test = custom_train_test_split(X, y,
+                                                               test_size=0.2)
     model = SVC(gamma=gamma, C=C, kernel=kernel)
 
     model.fit(X_train, y_train.values.ravel())
@@ -152,7 +196,7 @@ def add_index_features(df, args, start_date=None, end_date=None):
 def techical_indicators(df):
     df = df.fillna(method='backfill')
     
-    features = list(df.columns)[12:]
+    features = list(df.columns)[11:]
     
     print('Logistic regression - ', end='')
     logistic_regression(df, features=features, target='Up_down')
@@ -163,6 +207,9 @@ def techical_indicators(df):
     print('Random forest classifier - ', end='')
     random_forest_classifier(df, features=features, n_estimators=100,
                              target='Up_down')    
+
+    print('LightGBM classifier - ', end='')
+    lightgbm_classifier(df, features=features, target='Up_down')
 
 
 def index_indicators(df):
@@ -177,7 +224,7 @@ def index_indicators(df):
         print('NaN values still present, abort...')
         return
 
-    features = list(df.columns)[12:]
+    features = list(df.columns)[11:]
     
     print('Logistic regression - ', end='')
     logistic_regression(df, features=features, target='Up_down')
@@ -188,18 +235,25 @@ def index_indicators(df):
     print('Random forest classifier - ', end='')
     random_forest_classifier(df, features=features, n_estimators=100,
                              target='Up_down')
+    
+    print('LightGBM classifier - ', end='')
+    lightgbm_classifier(df, features=features, target='Up_down')
 
 
 def main():
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
     df = EDA(INSTRUMENT, False, True)
+    df = df.drop('Close_open', axis=1)
+    print(df.columns)
     print("Techincal indicators")
     techical_indicators(df)
 
     print()
     
     df = EDA(INSTRUMENT)
+    df = df.drop('Close_open', axis=1)
+    print(df.columns)
     print("Market indicators")
     index_indicators(df)
 
