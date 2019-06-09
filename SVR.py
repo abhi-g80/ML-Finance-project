@@ -26,6 +26,13 @@ INDICES = ['CME_GC1', 'CBOE_VX1', 'ICE_DX1', 'CME_SP1', 'CME_NG1', 'CME_CL1']
 MARKET_FEATURES = ['CHRIS/' + item for item in INDICES]
 
 
+def custom_train_test_split(X, y, test_size=0.2):
+    X_train, X_test = X[:int(len(X)*(1-test_size))], X[int(len(X)*(1-test_size)):]
+    y_train, y_test = y[:int(len(y)*(1-test_size))], y[int(len(y)*(1-test_size)):]
+    
+    return X_train, X_test, y_train, y_test
+
+
 def standardize(df):
     scaler = preprocessing.StandardScaler()
     columns = df.columns
@@ -47,8 +54,8 @@ def support_vector_regression(df, gamma=0.001, C=1.0, epsilon=0.2,
     if debug:
         print(f"Shape X = {X.shape}, y = {y.shape}")
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
-                                                        random_state=0)
+    X_train, X_test, y_train, y_test = custom_train_test_split(X, y,
+                                                               test_size=0.2)
     model = SVR(gamma=gamma, C=C, epsilon=epsilon)
 
     model.fit(X_train, y_train.values.ravel())
@@ -75,7 +82,7 @@ def support_vector_machines(df, gamma=0.025, C=1.0, kernel='rbf',
         print(f"Shape X = {X.shape}, y = {y.shape}")
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
-                                                        random_state=0)
+                                                        shuffle=False)
     model = SVC(gamma=gamma, C=C, kernel=kernel)
 
     model.fit(X_train, y_train.values.ravel())
@@ -113,15 +120,15 @@ def add_index_features(df, args, start_date=None, end_date=None):
     return df
 
 
-def techical_indicators_svr(df):
+def techical_indicators(df):
     df = df.fillna(method='backfill')
     
     features = list(df.columns)[12:]
     support_vector_regression(df, features=features, target='Close_open')
-    support_vector_machines(df, features=features, target='Up_down')    
+    #support_vector_machines(df, features=features, target='Up_down')    
 
 
-def index_indicators_svr(df):
+def index_indicators(df):
     df = add_index_features(df, MARKET_FEATURES, start_date=df.index[0],
                              end_date=df.index[-1])
 
@@ -135,27 +142,31 @@ def index_indicators_svr(df):
 
     features = list(df.columns)[12:]
     support_vector_regression(df, features=features, target='Close_open')
-    support_vector_machines(df, features=features, target='Up_down')
+    #support_vector_machines(df, features=features, target='Up_down')
     
     # Test for C
-    y = []
-    for c in range(1, 100, 1):
-        y.append(support_vector_machines(df, C=c, features=features,
-                                          target='Up_down'))
-    print(f'y = {y}')
-    plt.plot(y)
-    plt.show()
+    #y = []
+    #for c in range(1, 100, 1):
+    #    y.append(support_vector_machines(df, C=c, features=features,
+    #                                      target='Up_down'))
+    #plt.plot(y)
+    #plt.xlabel('C')
+    #plt.ylabel('Score')
+    #plt.savefig('Graphs/SVM-C-optimization.png')
+    #plt.show()
 
 
 def main():
     #os.chdir(PROJ_DIR)
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-    #df = EDA(INSTRUMENT, False, True)
-    #techical_indicators_svr(df)
+    df = EDA(INSTRUMENT, False, True)
+    print('Technical indicators')
+    techical_indicators(df)
 
     df = EDA(INSTRUMENT)
-    index_indicators_svr(df)
+    print('Technical indicators')
+    index_indicators(df)
 
 
 if __name__ == '__main__':
