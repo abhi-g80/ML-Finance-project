@@ -39,17 +39,20 @@ class LSTMModel():
     """
 
     def __init__(self, instrument=None, split=0.8, look_back_days=60, 
-                 target='Close', epochs=5, batch_size=32):
+                 target='Close', epochs=5, batch_size=32,
+                 savegraph='graph.png'):
         self.instrument = instrument
         self.split = split
         self.target = target
         self.look_back_days = look_back_days
         self.batch_size = batch_size
         self.epochs = epochs
+        self.savegraph = savegraph
         self.model = None
         self.train = None
         self.test = None
         self.predictions = None
+        self.history = None
         self.__instr_df = None
         self.__actual_prices = None
         self.__actual_test_prices = None
@@ -156,13 +159,14 @@ class LSTMModel():
         return
 
     def __plot(self):
-        plt.figure(figsize=(20,10))
-        self.__actual_test_prices.plot(color='blue', grid=True)
-        plt.plot(self.predictions , color='red', label='Predicted close')
-        plt.title('Prediction')
-        plt.xlabel('Date')
-        plt.ylabel('Price')
+        fig, ax = plt.subplots(figsize=(8,5))
+        self.__actual_test_prices.plot(color='blue', grid=True, ax=ax)
+        ax.plot(self.predictions , color='red', label='Predicted close')
+        ax.set_title('Prediction')
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Price')
         plt.legend()
+        plt.savefig(self.savegraph)
         plt.show()
         return
     
@@ -224,9 +228,32 @@ class LSTMModel():
         self.model.add(Dropout(0.2))
         self.model.add(Dense(units=1))
     
-        self.model.compile(optimizer=optimizer, loss=loss)
-        self.model.fit(features_set, labels, epochs=self.epochs, 
-                       batch_size=self.batch_size)
+        self.model.compile(optimizer=optimizer, loss=loss,
+                           metrics=['mae', 'acc'])
+        self.history = self.model.fit(features_set, labels, 
+                                      validation_split=0.2,
+                                      epochs=self.epochs, 
+                                      batch_size=self.batch_size)
+
+    def plot_acc(self):
+        """ Plot training & validation accuracy values """
+        plt.plot(self.history.history['acc'])
+        plt.plot(self.history.history['val_acc'])
+        plt.title('Model accuracy')
+        plt.ylabel('Accuracy')
+        plt.xlabel('Epoch')
+        plt.legend(['Train', 'Test'], loc='upper left')
+        plt.show()
+        
+    def plot_loss(self):
+        """ Plot training & validation loss values """
+        plt.plot(self.history.history['loss'])
+        plt.plot(self.history.history['val_loss'])
+        plt.title('Model loss')
+        plt.ylabel('Loss')
+        plt.xlabel('Epoch')
+        plt.legend(['Train', 'Test'], loc='upper left')
+        plt.show()
 
     def predict(self):
         self.predictions = self.model.predict(self.test)
@@ -240,7 +267,8 @@ class LSTMModel():
 
 def main():
     # Create instance
-    instr = LSTMModel(INSTRUMENT, split=0.8, look_back_days=60, epochs=10)
+    instr = LSTMModel(INSTRUMENT, split=0.8, look_back_days=60, epochs=20,
+                      savegraph='Graphs/LSTM_e20_3layer_60lbd.png')
     
     # Read and process the data
     instr.preprocess()
@@ -251,10 +279,16 @@ def main():
     # Predict
     instr.predict()
     
-    # Plot result
+    # Plot actual vs prediction
     instr.plot()
+    
+    # Plot accuracy
+    instr.plot_acc()
+    
+    # Plot loss
+    instr.plot_loss()
 
-    print(f'Error: {instr.error()}')
+    print(f'RMS error: {instr.error()}')
 
 if __name__ == '__main__':
     main()
