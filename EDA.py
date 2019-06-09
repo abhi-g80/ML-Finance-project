@@ -34,19 +34,21 @@ def EDA(file, debug=None, tech_analysis=False, start_date=None, end_date=None):
         
         # Plot open and close prices
         ax = plt.gca()
-        df.plot(y='Open', ax=ax)
-        df.plot(y='Close', ax=ax)
+        df.plot(y='Open', ax=ax, grid=True)
+        df.plot(y='Close', ax=ax, grid=True)
         plt.show()
 
     """ Introduce new attributes
-        Target is close/open - 1 
+        Target is close/open - 1 for regression task and Up_down for 
+        classification
     """
     df['Close_close'] = (df['Close']/df['Close'].shift(1)) - 1
     df['High_high'] = (df['High']/df['High'].shift(1)) - 1
     df['Low_low'] = (df['Low']/df['Low'].shift(1)) - 1
     df['Close_open'] = df['Close']/df['Open'] - 1
-    df['High_low'] = df['High']/df['Low'] - 1
     df['Up_down'] = np.sign(df['Close_open']).astype('int')
+    df['High_low'] = df['High']/df['Low'] - 1
+    df['Close_open-1'] = df['Close_open'].shift(1)
     df['Log_volume'] = df['Volume'].apply(np.log)
 
     if debug:
@@ -64,8 +66,17 @@ def EDA(file, debug=None, tech_analysis=False, start_date=None, end_date=None):
     
     # Add all Technical analysis features if variable ta is true
     if tech_analysis:
-        df = ta.add_all_ta_features(df, 'Open', 'High', 'Low', 'Close', 'Volume',
-                                 fillna=True)    
+        #df = ta.add_all_ta_features(df, 'Open', 'High', 'Low', 'Close', 'Volume',
+        #                            fillna=True)    
+        
+        df = ta.add_volume_ta(df, 'Open', 'High', 'Low', 'Close', 'Volume')
+        
+        #df = ta.add_momentum_ta(df, 'Open', 'High', 'Low', 'Close', 'Volume')
+        
+        df = ta.add_volatility_ta(df, 'Open', 'High', 'Low', 'Close', 'Volume')
+        
+        df = ta.add_trend_ta(df, 'Open', 'High', 'Low', 'Close', 'Volume')
+        
         if debug:        
             print(df.info())
             
