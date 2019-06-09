@@ -40,13 +40,15 @@ class CNNModel():
     """
 
     def __init__(self, instrument=None, split=0.8, look_back_days=60, 
-                 target='Close', epochs=5, batch_size=32):
+                 target='Close', epochs=5, batch_size=32,
+                 savegraph='graph.png'):
         self.instrument = instrument
         self.split = split
         self.target = target
         self.look_back_days = look_back_days
         self.batch_size = batch_size
         self.epochs = epochs
+        self.savegraph = savegraph
         self.model = None
         self.train = None
         self.test = None
@@ -109,7 +111,7 @@ class CNNModel():
     
     @epochs.setter
     def epochs(self, epochs):
-        if 1 <= epochs <= 100:
+        if 1 <= epochs <= 200:
             self.__epochs = epochs
         else:
             raise ValueError(f"Epochs given {epochs}, should be between "
@@ -157,13 +159,14 @@ class CNNModel():
         return
 
     def __plot(self):
-        plt.figure(figsize=(8,5))
-        self.__actual_test_prices.plot(color='blue', grid=True)
-        plt.plot(self.predictions , color='red', label='Predicted close')
-        plt.title('Prediction')
-        plt.xlabel('Date')
-        plt.ylabel('Price')
+        fig, ax = plt.subplots(figsize=(8,5))
+        self.__actual_test_prices.plot(color='blue', grid=True, ax=ax)
+        ax.plot(self.predictions , color='red', label='Predicted close')
+        ax.set_title('Prediction')
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Price')
         plt.legend()
+        plt.savefig(self.savegraph)
         plt.show()
         return
     
@@ -212,14 +215,14 @@ class CNNModel():
         print(features_set.shape)
 
         self.model = Sequential()
-        self.model.add(Conv1D(64, (3,), activation='relu', 
+        self.model.add(Conv1D(64, (4,), activation='relu', 
                        input_shape=(features_set.shape[1], 1)))   
 
         self.model.add(MaxPooling1D(pool_size=(2,)))
-        self.model.add(Conv1D(64, (3,), activation='relu'))
+        self.model.add(Conv1D(64, (4,), activation='relu'))
         
-        self.model.add(MaxPooling1D(pool_size=(2,)))
-        self.model.add(Conv1D(64, (3,), activation='relu'))        
+        #self.model.add(MaxPooling1D(pool_size=(2,)))
+        #self.model.add(Conv1D(64, (4,), activation='relu'))        
 
         self.model.add(MaxPooling1D(pool_size=(2,)))
         self.model.add(Flatten())
@@ -228,9 +231,11 @@ class CNNModel():
         
         self.model.add(Dense(1, activation='sigmoid'))
     
-        self.model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
-        self.model.fit(features_set, labels, epochs=self.epochs, 
-                       batch_size=self.batch_size)
+        self.model.compile(optimizer=optimizer, loss=loss,
+                           metrics=['mae', 'acc'])
+        self.history = self.model.fit(features_set, labels,
+                                      epochs=self.epochs, 
+                                      batch_size=self.batch_size)
 
     def predict(self):
         self.predictions = self.model.predict(self.test)
@@ -244,7 +249,8 @@ class CNNModel():
 
 def main():
     # Create instance
-    instr = CNNModel(INSTRUMENT, split=0.8, look_back_days=60, epochs=100)
+    instr = CNNModel(INSTRUMENT, split=0.8, look_back_days=60, epochs=100,
+                     savegraph='Graphs/CNN_e100_2layer.png')
     
     # Read and process the data
     instr.preprocess()
@@ -255,10 +261,10 @@ def main():
     # Predict
     instr.predict()
     
-    # Plot result
+    # Plot actual vs prediction
     instr.plot()
-
-    print(f'Error: {instr.error()}')
+    
+    print(f'RMS error: {instr.error()}')
 
 if __name__ == '__main__':
     main()
